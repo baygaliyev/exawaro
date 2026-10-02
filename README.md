@@ -169,9 +169,10 @@ Related published work using this method:
 }
 
 @article{aliyev2025vpof,
-  title  = {Vehicle-Pedestrian Optimization Framework for Exposure-Aware Routing},
+  title  = {Exposure-Aware Joint Pedestrian-Vehicle Routing},
   author = {Aliyev, Gurban and Nanni, Mirco},
   year   = {2025},
+  journal = {Springer MONET},
   doi    = {10.1007/s11036-025-02459-4}
 }
 ```
