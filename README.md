@@ -169,7 +169,7 @@ Related published work using this method:
 }
 
 @article{aliyev2025vpof,
-  title  = {Exposure-Aware Joint Pedestrian-Vehicle Routing},
+  title  = {Exposure-Aware Joint Pedestrian–Vehicle Routing},
   author = {Aliyev, Gurban and Nanni, Mirco},
   year   = {2025},
   journal = {Springer MONET},
