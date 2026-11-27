@@ -12,7 +12,7 @@ authors:
 repository-code: https://github.com/baygaliyev/exawaro
 url: https://github.com/baygaliyev/exawaro
 license: MIT
-version: 0.2.2
+version: 0.2.3
 preferred-citation:
   type: article
   title: "Vehicle-Pedestrian Optimization Framework for Exposure-Aware Routing"

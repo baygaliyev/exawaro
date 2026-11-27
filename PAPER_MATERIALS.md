@@ -2,7 +2,7 @@
 
 This file maps the figures and tables used in the MDM 2025 and MONET 2025
 papers to material included here. Notebook cell numbers refer to
-`notebooks/exawaro_pedestrian.ipynb` as released in v0.2.2.
+`notebooks/exawaro_pedestrian.ipynb` as released in v0.2.3.
 
 Status labels:
 
@@ -65,3 +65,13 @@ paper in the MONET caption.
 - Some stored MONET figures are labelled `Final Step` while the paper captions
   name the concrete step number. The archived figures are the versions used in
   the thesis; exact paper-pixel identity was not independently proven.
+
+## Related output
+
+An exawaro-related poster titled *Optimizing Exposure-Aware Routing for Vehicles
+and Pedestrians* was presented at UrbanSys 2025 in Siena, a satellite event of
+CCS 2025. ResearchGate poster DOI:
+[10.13140/RG.2.2.30945.34404](https://doi.org/10.13140/RG.2.2.30945.34404).
+This poster is related context only; it is not the source of the MDM/MONET
+figures mapped above and does not replace the MONET paper as the primary
+citation for this repository.

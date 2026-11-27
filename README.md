@@ -54,6 +54,14 @@ Related work and broader context:
   doi       = {10.1145/3748777.3748808}
 }
 
+@misc{aliyev2025urbansysposter,
+  title        = {Optimizing Exposure-Aware Routing for Vehicles and Pedestrians},
+  author       = {Aliyev, Gurban},
+  howpublished = {Poster presented at UrbanSys 2025, Siena, Italy, satellite event of CCS 2025},
+  year         = {2025},
+  doi          = {10.13140/RG.2.2.30945.34404}
+}
+
 @phdthesis{aliyev2026phd,
   title = {Analysis and Routing-Based Mitigation of Vehicular Air Pollution Exposure},
   author = {Aliyev, Gurban},
@@ -66,7 +74,8 @@ Related work and broader context:
 
 An exawaro poster titled *Optimizing Exposure-Aware Routing for Vehicles and
 Pedestrians* was presented at UrbanSys 2025 in Siena, a satellite event of
-CCS 2025.
+CCS 2025. ResearchGate poster DOI:
+[10.13140/RG.2.2.30945.34404](https://doi.org/10.13140/RG.2.2.30945.34404).
 
 ## What the code does
 
