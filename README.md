@@ -2,11 +2,11 @@
 
 Exposure-aware routing and behavioural simulation on urban road networks.
 
-This repository contains the reference implementation of the routing framework
-described in *Vehicle-Pedestrian Optimization Framework for Exposure-Aware
-Routing* (Mobile Networks and Applications, 2025). The broader context is the
-PhD thesis *Analysis and Routing-Based Mitigation of Vehicular Air Pollution
-Exposure* (University of Pisa / KDD Lab, ISTI-CNR, 2026).
+This repository contains the reference implementation of the exawaro portion of
+a paper-based PhD thesis. Two technical chapters are covered here: exposure-aware
+pedestrian routing (MDM 2025) and joint pedestrian–vehicle optimisation (MONET
+2025). The earlier emission-exposure pipeline is archived separately as EIDE
+(INTSYS 2024). A broader summary of the whole PhD is in the SSTD 2025 paper.
 
 ## Citation
 
@@ -33,7 +33,7 @@ BibTeX:
 }
 ```
 
-Related work using the same method:
+Related work and broader context:
 
 ```bibtex
 @inproceedings{aliyev2025mdm,
@@ -45,14 +45,28 @@ Related work using the same method:
   doi       = {10.1109/MDM65600.2025.00022}
 }
 
-@phdthesis{aliyev2026exawaro,
+@inproceedings{aliyev2025sstd,
+  title     = {Optimization of Exposure-Aware Routing for Vehicles and Pedestrians},
+  author    = {Aliyev, Gurban},
+  booktitle = {Proceedings of the 19th International Symposium on Spatial and Temporal Data (SSTD '25)},
+  year      = {2025},
+  pages     = {119--122},
+  doi       = {10.1145/3748777.3748808}
+}
+
+@phdthesis{aliyev2026phd,
   title = {Analysis and Routing-Based Mitigation of Vehicular Air Pollution Exposure},
   author = {Aliyev, Gurban},
   school = {University of Pisa},
   year = {2026},
+  doi = {10.13140/RG.2.2.24155.73766},
   note = {National PhD Program in AI for Society, KDD Lab, ISTI-CNR}
 }
 ```
+
+An exawaro poster titled *Optimizing Exposure-Aware Routing for Vehicles and
+Pedestrians* was presented at UrbanSys 2025 in Siena, a satellite event of
+CCS 2025.
 
 ## What the code does
 
@@ -123,6 +137,9 @@ baselines) plus a pickled run log.
 | `exawaro/vehicular_od_generator_pisa.py` | Bounding-box OD variant |
 | `notebooks/exawaro_pedestrian.ipynb` | Full pedestrian/vehicle workflow with stored outputs |
 | `notebooks/google_maps_api.ipynb` | Google Maps Places API demonstration |
+| `figures/` | Stored MDM/MONET paper figures |
+| `paper_materials/baseline_comparison.docx` | Supporting values for MONET Table 1 |
+| `PAPER_MATERIALS.md` | Figure/result inventory and provenance notes |
 | `requirements.txt` | Runtime dependencies |
 | `setup.py` | Package metadata |
 | `CITATION.cff` | Machine-readable citation metadata |
@@ -188,6 +205,18 @@ python -m exawaro.main
 
 `main.py`, `car_od_randomizer.py` and `vehicular_od_generator_pisa.py` are
 runnable scripts; they read input data when executed.
+
+## Paper materials
+
+[PAPER_MATERIALS.md](PAPER_MATERIALS.md) maps every MDM and MONET figure/table
+to the included figure files, notebook cells, or supporting result files, and
+documents the remaining gaps.
+
+## Acknowledgements
+
+Mirco Nanni contributed to this work and is a co-author of the associated
+papers. This work was partially supported by the NextGeneration EU programme,
+grant n. PE00000013, as acknowledged in the MONET 2025 paper.
 
 ## License
 

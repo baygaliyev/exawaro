@@ -5,7 +5,7 @@ with open('README.md', encoding='utf-8') as f:
 
 setup(
     name='exawaro',
-    version='0.2.0',
+    version='0.2.1',
     description='Exposure-aware routing and behavioural simulation on urban road networks',
     long_description=long_description,
     long_description_content_type='text/markdown',

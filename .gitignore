@@ -151,6 +151,10 @@ cython_debug/
 output/
 plots/
 
+# Published paper figures are intentionally tracked.
+!figures/
+!figures/**/*.pdf
+
 # Data
 *.pkl
 *.npy

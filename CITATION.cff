@@ -6,10 +6,13 @@ authors:
   - family-names: Aliyev
     given-names: Gurban
     orcid: https://orcid.org/0009-0009-7398-055X
+  - family-names: Nanni
+    given-names: Mirco
+    orcid: https://orcid.org/0000-0003-3534-4332
 repository-code: https://github.com/baygaliyev/exawaro
 url: https://github.com/baygaliyev/exawaro
 license: MIT
-version: 0.2.0
+version: 0.2.1
 preferred-citation:
   type: article
   title: "Vehicle-Pedestrian Optimization Framework for Exposure-Aware Routing"
@@ -29,3 +32,39 @@ preferred-citation:
   end: 340
   year: 2025
   doi: 10.1007/s11036-025-02459-4
+references:
+  - type: conference-paper
+    title: "Exploiting Vehicular Data for Exposure-Aware Pedestrian Routing"
+    authors:
+      - family-names: Aliyev
+        given-names: Gurban
+        orcid: https://orcid.org/0009-0009-7398-055X
+      - family-names: Nanni
+        given-names: Mirco
+        orcid: https://orcid.org/0000-0003-3534-4332
+    collection-title: "2025 26th IEEE International Conference on Mobile Data Management (MDM)"
+    year: 2025
+    pages: 11-19
+    doi: 10.1109/MDM65600.2025.00022
+  - type: conference-paper
+    title: "Optimization of Exposure-Aware Routing for Vehicles and Pedestrians"
+    authors:
+      - family-names: Aliyev
+        given-names: Gurban
+        orcid: https://orcid.org/0009-0009-7398-055X
+    collection-title: "Proceedings of the 19th International Symposium on Spatial and Temporal Data (SSTD '25)"
+    year: 2025
+    pages: 119-122
+    doi: 10.1145/3748777.3748808
+    notes: "Summary of the complete PhD work, including exawaro."
+  - type: thesis
+    title: "Analysis and Routing-Based Mitigation of Vehicular Air Pollution Exposure"
+    authors:
+      - family-names: Aliyev
+        given-names: Gurban
+        orcid: https://orcid.org/0009-0009-7398-055X
+    institution:
+      name: University of Pisa
+    year: 2026
+    doi: 10.13140/RG.2.2.24155.73766
+    notes: "Exawaro covers two technical chapters of this paper-based thesis."
