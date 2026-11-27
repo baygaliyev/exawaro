@@ -1,3 +1,5 @@
+"""Dispersion-weighted pedestrian exposure and routing."""
+
 from collections import defaultdict
 from math import exp
 
@@ -8,27 +10,23 @@ from shapely.strtree import STRtree
 
 from exawaro.utils import normalize
 
+
 def edge_midpoint(geom):
     return geom.interpolate(0.5, normalized=True)
 
+
 def gaussian_weight(d, sigma):
-    return exp(- (d ** 2) / (2 * sigma ** 2))
+    return exp(-(d ** 2) / (2 * sigma ** 2))
 
 
 def build_neighbor_emission_weights(graph, buffer_radius=100, sigma=50):
-    """
-    For each edge, find portions of other edges that intersect its buffer,
-    and assign them weights based on midpoint distance (Gaussian decay).
-    
-    Returns:
-        neighbor_weights: dict[(u,v,key)] = list of ((nu, nv, nk), weight)
-    """
+    """Weight nearby road emissions onto each pedestrian edge by distance."""
     edge_geoms = {}
     edge_midpoints = {}
     edge_geom_list = []
     edge_keys_list = []
 
-    # Step 1: build edge geometry and key lists
+    # Build edge geometry and key lists.
     for u, v, key, data in graph.edges(keys=True, data=True):
         if 'geometry' in data:
             geom = data['geometry']
@@ -46,7 +44,7 @@ def build_neighbor_emission_weights(graph, buffer_radius=100, sigma=50):
     spatial_index = STRtree(edge_geom_list)
     neighbor_weights = defaultdict(list)
 
-    # Step 2: buffer and intersect
+    # Buffer each edge and collect the nearby road segments.
     for (u, v, key), base_geom in edge_geoms.items():
         base_midpoint = edge_midpoints[(u, v, key)]
         buffer = base_geom.buffer(buffer_radius)
@@ -95,8 +93,10 @@ def compute_path_metrics(graph, path):
         exposure += edge.get('personal_exposure', 0)
     return time, exposure
 
+
 def compute_path_hypervolume(time_diff, exposure_diff, local_ideal_time, local_ideal_exposure):
     return (local_ideal_time - time_diff) * (local_ideal_exposure - exposure_diff)
+
 
 def get_pedestrian_path_with_weight(graph, origin, destination, weight):
     for u, v, key, data in graph.edges(keys=True, data=True):
@@ -106,15 +106,15 @@ def get_pedestrian_path_with_weight(graph, origin, destination, weight):
 
     return nx.shortest_path(graph, origin, destination, weight=f'cost_{weight}')
 
+
 def select_best_pedestrian_path_based_on_dynamic_exposure(graph, origin, destination, weights):
-    paths = []
+    """Choose the weighted path with the largest hypervolume contribution."""
     metrics = []
 
     fastest_path = get_fastest_path(graph, origin, destination)
     fastest_time, fastest_exposure = compute_path_metrics(graph, fastest_path)
-    
+
     for w in weights:
-        # Compute combined cost
         for u, v, key, data in graph.edges(keys=True, data=True):
             wt = data.get('walking_time_norm', 1)
             exp = data.get('personal_exposure_norm', 0)
@@ -125,15 +125,13 @@ def select_best_pedestrian_path_based_on_dynamic_exposure(graph, origin, destina
             time, exposure = compute_path_metrics(graph, path)
             time_diff = ((time - fastest_time) / fastest_time) * 100 if fastest_time != 0 else 0
             exposure_diff = ((exposure - fastest_exposure) / fastest_exposure) * 100 if fastest_exposure != 0 else 0
-            paths.append(path)
             metrics.append((w, path, time_diff, exposure_diff))
         except:
             continue
 
     if not metrics:
-        return fastest_path  # fallback
+        return fastest_path
 
-    # Local ideal point (max diffs among alternatives)
     local_ideal_time = max(m[2] for m in metrics)
     local_ideal_exposure = max(m[3] for m in metrics)
 
@@ -148,30 +146,9 @@ def select_best_pedestrian_path_based_on_dynamic_exposure(graph, origin, destina
 
     return best_path
 
-# def update_pedestrian_exposure(graph, total_emission_map):
-#     for u, v, key, data in graph.edges(keys=True, data=True):
-#         edge_key = tuple(sorted((u, v)))
-#         emission = total_emission_map.get(edge_key, 0)
-#         # if emission > 0:
-#           # print(f"[DEBUG] Edge ({u}, {v}) has emission {emission:.2f}")
-#         length = data.get('length', 1)
-#         walking_time = data.get('walking_time', 1)
-#         data['total_emission'] = emission
-#         data['personal_exposure'] = (emission / length) * walking_time if length > 0 else 0
-#         # (emission per meter * walking time)
-
-#     # Normalize time & exposure again
-#     walking_times = [d.get('walking_time', 1) for _, _, _, d in graph.edges(keys=True, data=True)]
-#     exposures = [d.get('personal_exposure', 0) for _, _, _, d in graph.edges(keys=True, data=True)]
-#     norm_time = normalize(walking_times)
-#     norm_exp = normalize(exposures)
-
-#     for i, (u, v, key, data) in enumerate(graph.edges(keys=True, data=True)):
-#         data['walking_time_norm'] = norm_time[i]
-#         data['personal_exposure_norm'] = norm_exp[i]
-
 
 def update_pedestrian_exposure(graph, total_emission_map, neighbor_weights):
+    """Add own-road and nearby-road emissions, then normalise the edge costs."""
     for u, v, key, data in graph.edges(keys=True, data=True):
         edge_key = tuple(sorted((u, v)))
         own_emission = total_emission_map.get(edge_key, 0)
@@ -181,7 +158,6 @@ def update_pedestrian_exposure(graph, total_emission_map, neighbor_weights):
             for (nu, nv, _), w in neighbor_weights.get((u, v, key), [])
         )
 
-        # consider dispersion from neighboring roads
         total = own_emission + neighbor_emission
         length = data.get('length', 1)
         walking_time = data.get('walking_time', 1)
@@ -189,7 +165,6 @@ def update_pedestrian_exposure(graph, total_emission_map, neighbor_weights):
         data['total_emission'] = total
         data['personal_exposure'] = (total / length) * walking_time if length > 0 else 0
 
-    # Normalize time & exposure again
     walking_times = [d.get('walking_time', 1) for _, _, _, d in graph.edges(keys=True, data=True)]
     exposures = [d.get('personal_exposure', 0) for _, _, _, d in graph.edges(keys=True, data=True)]
     norm_time = normalize(walking_times)

@@ -1,22 +1,19 @@
+"""Vehicle emission factors and exposure-aware car routing costs."""
+
+from collections import defaultdict
+
 import networkx as nx
 import numpy as np
 
+
 def compute_emission(speed, driving_time):
+    """Speed-based polynomial emission approximation, clipped at zero."""
     E_1 = (0.553 + 0.161 * speed - 0.00289 * (speed ** 2)) * driving_time
     return max(0, E_1)
 
+
 def compute_total_emission_map(car_routes, precomputed_emission_map):
-    """
-    Computes the total emissions per edge for a simulation step based on car routes.
-
-    Parameters:
-    - car_routes: list of (origin, destination, path), where path is a list of nodes
-    - precomputed_emission_map: dict[(u, v)] -> emission per traversal
-
-    Returns:
-    - total_emission_map: dict[(u, v)] -> total emissions accumulated over all car routes
-    """
-    from collections import defaultdict
+    """Accumulate emissions per undirected edge for one simulation step."""
     total_emission_map = defaultdict(float)
 
     for _, _, path in car_routes:
@@ -28,6 +25,7 @@ def compute_total_emission_map(car_routes, precomputed_emission_map):
 
 
 def get_car_path_with_weight(graph, origin, destination, weight, population_map, precomputed_emission_map):
+    """Return the shortest path for a fixed time/exposure trade-off weight."""
     for u, v, key, data in graph.edges(keys=True, data=True):
         time = data.get('driving_time', 1)
         pop = population_map.get(tuple(sorted((u, v))), 0)
@@ -37,8 +35,10 @@ def get_car_path_with_weight(graph, origin, destination, weight, population_map,
 
     return nx.shortest_path(graph, origin, destination, weight=f'cost_{weight}')
 
+
 def select_best_car_path(car_graph, origin, destination, weights, population_map, precomputed_emission_map):
-    # Step 1: compute fastest route as baseline
+    """Choose the weighted path with the largest hypervolume contribution."""
+    # Compute the fastest route as the baseline.
     try:
         fastest_path = nx.shortest_path(car_graph, origin, destination, weight='driving_time')
     except:
@@ -72,10 +72,10 @@ def select_best_car_path(car_graph, origin, destination, weights, population_map
 
     time_diffs = [m[2] for m in path_metrics]
     emission_diffs = [m[3] for m in path_metrics]
-    
+
     buffer_time = max(time_diffs) - min(time_diffs)
     buffer_emission = max(emission_diffs) - min(emission_diffs)
-    
+
     ideal_time = max(time_diffs) + 0.1 * buffer_time
     ideal_emission = max(emission_diffs) + 0.1 * buffer_emission
 

@@ -1,7 +1,12 @@
+# Runtime dependencies for exawaro.
+#
+# The scripts use the osmnx 1.x top-level API; osmnx 2.x changed
+# graph_from_bbox(...) and related helpers, so the version is pinned here.
+
 geopandas>=0.14
 networkx>=3.0
 numpy>=1.24
-osmnx>=1.9
+osmnx>=1.9,<2.0
 pandas>=2.0
 pyproj>=3.5
 shapely>=2.0

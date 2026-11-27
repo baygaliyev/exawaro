@@ -1,0 +1,31 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite the associated journal paper."
+title: "exawaro: Exposure-aware routing and behavioural simulation"
+type: software
+authors:
+  - family-names: Aliyev
+    given-names: Gurban
+    orcid: https://orcid.org/0009-0009-7398-055X
+repository-code: https://github.com/baygaliyev/exawaro
+url: https://github.com/baygaliyev/exawaro
+license: MIT
+version: 0.2.0
+preferred-citation:
+  type: article
+  title: "Vehicle-Pedestrian Optimization Framework for Exposure-Aware Routing"
+  authors:
+    - family-names: Aliyev
+      given-names: Gurban
+      orcid: https://orcid.org/0009-0009-7398-055X
+    - family-names: Nanni
+      given-names: Mirco
+      orcid: https://orcid.org/0000-0003-3534-4332
+  journal: Mobile Networks and Applications
+  publisher:
+    name: Springer
+  volume: 30
+  issue: 3-4
+  start: 325
+  end: 340
+  year: 2025
+  doi: 10.1007/s11036-025-02459-4

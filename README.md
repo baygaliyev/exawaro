@@ -2,16 +2,57 @@
 
 Exposure-aware routing and behavioural simulation on urban road networks.
 
-This repository contains the code underlying my PhD thesis, *"Analysis and
-Routing-Based Mitigation of Vehicular Air Pollution Exposure"* (National PhD
-Program in AI for Society, University of Pisa / KDD Lab, ISTI-CNR, 2026).
+This repository contains the reference implementation of the routing framework
+described in *Vehicle-Pedestrian Optimization Framework for Exposure-Aware
+Routing* (Mobile Networks and Applications, 2025). The broader context is the
+PhD thesis *Analysis and Routing-Based Mitigation of Vehicular Air Pollution
+Exposure* (University of Pisa / KDD Lab, ISTI-CNR, 2026).
 
-The question it addresses: **vehicles choose the fastest route; pedestrians
-breathe whatever that route emits.** If route choice accounts for the
-population living alongside a road, the optimal path stops being the fastest
-one.
+## Citation
 
----
+If you use this code, please cite the journal paper:
+
+> Gurban Aliyev and Mirco Nanni.
+> *Vehicle-Pedestrian Optimization Framework for Exposure-Aware Routing.*
+> **Mobile Networks and Applications**, volume 30, issues 3–4, pages 325–340,
+> 2025.
+> DOI: [10.1007/s11036-025-02459-4](https://doi.org/10.1007/s11036-025-02459-4)
+
+BibTeX:
+
+```bibtex
+@article{aliyev2025exawaro,
+  title   = {Vehicle-Pedestrian Optimization Framework for Exposure-Aware Routing},
+  author  = {Aliyev, Gurban and Nanni, Mirco},
+  journal = {Mobile Networks and Applications},
+  volume  = {30},
+  number  = {3--4},
+  pages   = {325--340},
+  year    = {2025},
+  doi     = {10.1007/s11036-025-02459-4}
+}
+```
+
+Related work using the same method:
+
+```bibtex
+@inproceedings{aliyev2025mdm,
+  title     = {Exploiting Vehicular Data for Exposure-Aware Pedestrian Routing},
+  author    = {Aliyev, Gurban and Nanni, Mirco},
+  booktitle = {2025 26th IEEE International Conference on Mobile Data Management (MDM)},
+  year      = {2025},
+  pages     = {11--19},
+  doi       = {10.1109/MDM65600.2025.00022}
+}
+
+@phdthesis{aliyev2026exawaro,
+  title = {Analysis and Routing-Based Mitigation of Vehicular Air Pollution Exposure},
+  author = {Aliyev, Gurban},
+  school = {University of Pisa},
+  year = {2026},
+  note = {National PhD Program in AI for Society, KDD Lab, ISTI-CNR}
+}
+```
 
 ## What the code does
 
@@ -48,18 +89,14 @@ Results are written as per-step CSVs (route assignments, emission maps,
 population maps, and a summary of time and exposure deltas against fastest-path
 baselines) plus a pickled run log.
 
----
-
-## Honest limitations
-
-These matter more than the feature list, and I would rather state them here
-than have a reviewer find them.
+## Limitations
 
 - **The reported results are not empirical validation.** They come from
-  constrained-route scenarios over a synthetic city model. The percentage
-  reductions describe modelled behaviour under those assumptions, not measured
-  reductions in a real population. Figures quoted in the thesis carry this
-  caveat explicitly.
+  constrained-route scenarios over the real OpenStreetMap network of Pisa,
+  using a static emission map derived from real GPS vehicle trajectories and a
+  generated pedestrian OD demand. The routing policy and the response to it are
+  modelled, not observed. The percentage reductions describe modelled behaviour
+  under those assumptions, not measured reductions in a real population.
 - **The emission model is a speed-based polynomial approximation**, not a
   measured or on-road emissions inventory. It captures the qualitative
   relationship between speed and emissions, not absolute quantities.
@@ -74,7 +111,21 @@ than have a reviewer find them.
   (100 m buffer, 50 m sigma). These were not fitted to measured concentration
   fields.
 
----
+## Repository contents
+
+| File | Description |
+|---|---|
+| `exawaro/main.py` | Simulation loop and path-selection logic |
+| `exawaro/cars.py` | Vehicle emission model and routing costs |
+| `exawaro/pedestrians.py` | Dispersion-weighted exposure and routing |
+| `exawaro/utils.py` | Normalisation helper |
+| `exawaro/car_od_randomizer.py` | OD generation from raw GPS trajectories |
+| `exawaro/vehicular_od_generator_pisa.py` | Bounding-box OD variant |
+| `notebooks/exawaro_pedestrian.ipynb` | Full pedestrian/vehicle workflow with stored outputs |
+| `notebooks/google_maps_api.ipynb` | Google Maps Places API demonstration |
+| `requirements.txt` | Runtime dependencies |
+| `setup.py` | Package metadata |
+| `CITATION.cff` | Machine-readable citation metadata |
 
 ## Installation
 
@@ -91,9 +142,11 @@ pip install -r requirements.txt
 pip install -e .
 ```
 
-Requires Python 3.9+.
+Requires Python 3.9+. The scripts target the `osmnx` 1.x API;
+`requirements.txt` pins `osmnx<2.0` because the top-level `graph_from_bbox(...)`
+call changed in 2.x.
 
-## Input data
+## Data requirements
 
 Input data is **not** included in this repository. The `data/` directory is
 git-ignored, and the trajectory data it expects is derived from a commercial
@@ -114,9 +167,12 @@ data/
 To regenerate the vehicular OD set from raw GPS traces, place
 `italy_trajectories_week_22.csv` (columns `tid`, `datetime`, `lat`, `lng`) in
 `data/trajectories/` and run `python -m exawaro.car_od_randomizer`. This snaps
-trajectory endpoints to a 200 m grid and samples routes within the bounding box.
+trajectory endpoints to a 200 m grid and samples two routes per trip within the
+bounding box.
 
 ## Usage
+
+Import the reusable helpers directly:
 
 ```python
 from exawaro.cars import compute_emission
@@ -130,57 +186,10 @@ Or run the full simulation, which reads from `data/` and writes to `output/`:
 python -m exawaro.main
 ```
 
-## Project layout
+`main.py`, `car_od_randomizer.py` and `vehicular_od_generator_pisa.py` are
+runnable scripts; they read input data when executed.
 
-```
-exawaro/
-  main.py                              simulation loop and path-selection logic
-  cars.py                              vehicle emission model and routing costs
-  pedestrians.py                       dispersion-weighted exposure and routing
-  utils.py                             normalisation helpers
-  car_od_randomizer.py                 OD generation from raw GPS trajectories
-  vehicular_od_generator_pisa.py       bounding-box OD variant
-```
-
-## Citation
-
-If you use this code, please cite the thesis:
-
-```bibtex
-@phdthesis{aliyev2026exposure,
-  title     = {Analysis and Routing-Based Mitigation of Vehicular Air Pollution Exposure},
-  author    = {Aliyev, Gurban},
-  school    = {University of Pisa},
-  year      = {2026},
-  note      = {National PhD Program in AI for Society, KDD Lab, ISTI-CNR}
-}
-```
-
-Related published work using this method:
-
-```bibtex
-@inproceedings{aliyev2025mdm,
-  title     = {Exploiting Vehicular Data for Exposure-Aware Pedestrian Routing},
-  author    = {Aliyev, Gurban and Nanni, Mirco},
-  booktitle = {2025 26th IEEE International Conference on Mobile Data Management (MDM)},
-  year      = {2025},
-  pages     = {11--19},
-  doi       = {10.1109/MDM65600.2025.00022}
-}
-
-@article{aliyev2025vpof,
-  title   = {Vehicle-Pedestrian Optimization Framework for Exposure-Aware Routing},
-  author  = {Aliyev, Gurban and Nanni, Mirco},
-  year    = {2025},
-  journal = {Mobile Networks and Applications},
-  volume  = {30},
-  number  = {3--4},
-  pages   = {325--340},
-  doi     = {10.1007/s11036-025-02459-4}
-}
-```
-
-## Licence
+## License
 
 MIT — see [LICENSE](LICENSE).
 

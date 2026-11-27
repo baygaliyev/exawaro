@@ -18,7 +18,7 @@ setup(
         'geopandas',
         'networkx',
         'numpy',
-        'osmnx',
+        'osmnx>=1.9,<2.0',
         'pandas',
         'pyproj',
         'shapely',

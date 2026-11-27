@@ -1,13 +1,14 @@
+"""Run the pedestrian and vehicle simulations and write per-step outputs."""
+
 from collections import defaultdict
 import os
+import pickle
+import random
 
 import networkx as nx
 import numpy as np
 import osmnx as ox
 import pandas as pd
-import pickle
-import random
-# print(ox.__version__)
 
 from exawaro.cars import (compute_emission, compute_total_emission_map,
                           get_car_path_with_weight)
@@ -16,7 +17,6 @@ from exawaro.pedestrians import (build_neighbor_emission_weights,
                                  get_pedestrian_path_with_weight,
                                  select_best_pedestrian_path_based_on_dynamic_exposure,
                                  update_pedestrian_exposure)
-from exawaro.utils import normalize
 
 
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -24,32 +24,30 @@ input_data_path = os.path.join(REPO_ROOT, 'data') + os.sep
 output_dir = os.path.join(REPO_ROOT, 'output') + os.sep
 os.makedirs(output_dir, exist_ok=True)
 
-# Define Pisa center boundaries
-# ymax, ymin, xmax, xmin = (43.7295, 43.7025, 10.4214, 10.3824) # Pisa 3x3
+# Bounding box for central Pisa.
 south, west, north, east = 43.7025, 10.3824, 43.7295, 10.4214
 
-# weights for least-cost paths
+# Weight sweep for the least-cost paths.
 weights = [round(0.8**x, 3) for x in range(0, 20, 2)]
 
-# print("BBOX:", west, south, east, north)
-ped_graph = ox.graph_from_bbox((west, south, east, north), network_type="walk", 
+ped_graph = ox.graph_from_bbox((west, south, east, north), network_type="walk",
                                simplify=False, retain_all=True)
 
 ped_graph = ox.convert.to_undirected(ped_graph)
 
-car_graph = ox.graph_from_bbox((west, south, east, north), network_type="drive_service", 
+car_graph = ox.graph_from_bbox((west, south, east, north), network_type="drive_service",
                                simplify=False, retain_all=True)
 
-car_graph = ox.add_edge_speeds(car_graph) # add speed limits
-car_graph = ox.add_edge_travel_times(car_graph) # add travel times
+car_graph = ox.add_edge_speeds(car_graph)
+car_graph = ox.add_edge_travel_times(car_graph)
 
-# Consider neighboring edges in emission exposure
+# Include nearby roads in pedestrian exposure.
 neighbor_weights = build_neighbor_emission_weights(ped_graph)
 
 for u, v, k, data in ped_graph.edges(keys=True, data=True):
     if 'length' not in data or data['length'] is None:
         data['length'] = 1  # fallback value
-    data['walking_time'] = data['length'] / 1.4  # assuming 1.4 m/s average walking speed
+    data['walking_time'] = data['length'] / 1.4  # 1.4 m/s walking speed
 
 for u, v, k, data in car_graph.edges(keys=True, data=True):
     data['speed_limit_mps'] = data.get('speed_kph', 50) / 3.6
@@ -58,7 +56,7 @@ for u, v, k, data in car_graph.edges(keys=True, data=True):
 # Precompute emissions for car graph edges
 precomputed_emission_map = {
     (u, v): compute_emission(
-        data.get('speed_limit_mps', 13.9),  # or your column
+        data.get('speed_limit_mps', 13.9),
         data.get('driving_time', data.get('length', 100) / data.get('speed_limit_mps', 13.9)))
     for u, v, data in car_graph.edges(data=True)}
 
@@ -68,7 +66,7 @@ tourist_trips = pd.read_csv(input_data_path + "tourist_5000_od_pairs_pisa.csv")
 worker_trips = pd.read_csv(input_data_path + "workers_students_od_pairs_pisa.csv")
 car_trips = pd.read_csv(input_data_path + "cars_od_pairs_pisa_2526_routes.csv")
 
-### --- Utility Functions --- ###
+# Helpers
 
 def compute_best_global_weight_from_metrics(metrics_df):
     weights = sorted(metrics_df['weight'].unique())
@@ -97,9 +95,6 @@ def compute_best_global_weight_from_metrics(metrics_df):
     ref_time = pareto_df['avg_time_diff_percentage'].max() + 0.1 * buffer_reference_time
     ref_exp = pareto_df['avg_exposure_diff_percentage'].max() + 0.1 * buffer_exposure
 
-    # ref_time = pareto_df['avg_time_diff_percentage'].max()
-    # ref_exp = pareto_df['avg_exposure_diff_percentage'].max()
-
     pareto_df['hypervolume'] = (
         (ref_time - pareto_df['avg_time_diff_percentage']) *
         (ref_exp - pareto_df['avg_exposure_diff_percentage'])
@@ -108,7 +103,7 @@ def compute_best_global_weight_from_metrics(metrics_df):
     best_weight = pareto_df.loc[pareto_df['hypervolume'].idxmax(), 'weight']
     return best_weight, pareto_df
 
-# storage for global weights per step
+# Global weights selected at each step.
 global_weights_log = []
 
 def log_global_weights(step, ped_weight, car_weight):
@@ -122,18 +117,22 @@ def log_global_weights(step, ped_weight, car_weight):
 def get_fastest_path(graph, origin, destination):
     return nx.shortest_path(graph, origin, destination, weight='walking_time')
 
-### --- Main Simulation Step --- ###
+
+def make_undirected_emission_map(emission_map):
+    """Accumulate directed edge emissions onto undirected edge keys."""
+    undirected = defaultdict(float)
+    for (u, v), value in emission_map.items():
+        key = tuple(sorted((u, v)))
+        undirected[key] += value
+    return undirected
+
 
 def run_simulation_step(t, ped_graph, car_graph, pedestrian_od_pairs, car_od_pairs,
                         precomputed_emission_map, weights, mode='local',
                         previous_total_emission_map=None, neighbor_weights=None):
-    
-    # Update exposure based on emissions from the previous step
-    undirected_emission_map = defaultdict(float)
-    for (u, v), e in previous_total_emission_map.items():
-        key = tuple(sorted((u, v)))
-        undirected_emission_map[key] += e
 
+    # Update exposure from the previous step's emissions.
+    undirected_emission_map = make_undirected_emission_map(previous_total_emission_map)
     update_pedestrian_exposure(ped_graph, undirected_emission_map, neighbor_weights)
 
     pedestrian_routes = []
@@ -142,9 +141,9 @@ def run_simulation_step(t, ped_graph, car_graph, pedestrian_od_pairs, car_od_pai
     total_emission_map = defaultdict(float)
 
     if mode == 'global':
-        # --- GLOBAL pedestrian routing ---
+        # Global pedestrian routing.
         ped_metrics = []
-     
+
         for origin, destination in pedestrian_od_pairs:
             try:
                 fastest_path = get_fastest_path(ped_graph, origin, destination)
@@ -179,7 +178,7 @@ def run_simulation_step(t, ped_graph, car_graph, pedestrian_od_pairs, car_od_pai
                 if t == 0:
                     path = get_fastest_path(ped_graph, origin, destination)
                 else:
-                    path = get_pedestrian_path_with_weight(ped_graph, origin, destination, 
+                    path = get_pedestrian_path_with_weight(ped_graph, origin, destination,
                                                         global_ped_weight)
                 pedestrian_routes.append((origin, destination, path))
                 for u, v in zip(path[:-1], path[1:]):
@@ -188,7 +187,7 @@ def run_simulation_step(t, ped_graph, car_graph, pedestrian_od_pairs, car_od_pai
             except:
                 continue
 
-        # --- GLOBAL car routing ---
+        # Global car routing.
         car_metrics = []
 
         for origin, destination in car_od_pairs:
@@ -198,15 +197,15 @@ def run_simulation_step(t, ped_graph, car_graph, pedestrian_od_pairs, car_od_pai
                 fastest_exposure = sum(car_graph[u][v][0].get('exposure', 0) for u, v in zip(fastest_path[:-1], fastest_path[1:]))
 
                 for w in weights:
-                    # Step 1: compute cost for all edges based on this weight
+                    # Set the cost for every edge with this weight.
                     for u, v, key, data in car_graph.edges(keys=True, data=True):
                         time = data.get('driving_time', 1)
                         pop = population_map.get(tuple(sorted((u, v))), 0)
                         emis = precomputed_emission_map.get((u, v), 0)
                         exposure = emis * pop
                         data[f'cost_{w}'] = w * time + (1 - w) * exposure
-                    
-                    # Step 2: compute route and evaluate
+
+                    # Find and evaluate the route.
                     path = nx.shortest_path(car_graph, origin, destination, weight=f'cost_{w}')
                     time = sum(car_graph[u][v][0].get('driving_time', 1) for u, v in zip(path[:-1], path[1:]))
                     exposure = sum(car_graph[u][v][0].get('exposure', 0) for u, v in zip(path[:-1], path[1:]))
@@ -231,8 +230,8 @@ def run_simulation_step(t, ped_graph, car_graph, pedestrian_od_pairs, car_od_pai
                 if t == 0:
                     path = nx.shortest_path(car_graph, origin, destination, weight='driving_time')
                 else:
-                    path = get_car_path_with_weight(car_graph, origin, destination, 
-                                                    global_car_weight, population_map, 
+                    path = get_car_path_with_weight(car_graph, origin, destination,
+                                                    global_car_weight, population_map,
                                                     precomputed_emission_map)
                 car_routes.append((origin, destination, path))
             except:
@@ -244,14 +243,14 @@ def run_simulation_step(t, ped_graph, car_graph, pedestrian_od_pairs, car_od_pai
             log_global_weights(t, global_ped_weight, global_car_weight)
 
     else:
-        # --- LOCAL pedestrian routing ---
+        # Local pedestrian routing.
         for origin, destination in pedestrian_od_pairs:
             try:
                 if t == 0:
                     path = get_fastest_path(ped_graph, origin, destination)
                 else:
                     path = select_best_pedestrian_path_based_on_dynamic_exposure(ped_graph, origin, destination, weights)
-                
+
                 pedestrian_routes.append((origin, destination, path))
                 for u, v in zip(path[:-1], path[1:]):
                     edge = tuple(sorted((u, v)))
@@ -259,7 +258,7 @@ def run_simulation_step(t, ped_graph, car_graph, pedestrian_od_pairs, car_od_pai
             except:
                 continue
 
-        # --- LOCAL car routing ---
+        # Local car routing.
         for origin, destination in car_od_pairs:
             if t == 0:
                 try:
@@ -269,14 +268,14 @@ def run_simulation_step(t, ped_graph, car_graph, pedestrian_od_pairs, car_od_pai
                     continue
             else:
                 try:
-                    # Step 0: Fastest route (baseline)
+                    # Fastest route baseline.
                     fastest_path = nx.shortest_path(car_graph, origin, destination, weight='driving_time')
                     fastest_time = sum(car_graph[u][v][0].get('driving_time', 1) for u, v in zip(fastest_path[:-1], fastest_path[1:]))
                     fastest_emission = sum(precomputed_emission_map.get((u, v), 0) for u, v in zip(fastest_path[:-1], fastest_path[1:]))
 
                     path_metrics = []
                     for w in weights:
-                        # Compute cost
+                        # Set the weighted cost on every edge.
                         for u, v, key, data in car_graph.edges(keys=True, data=True):
                             time = data.get('driving_time', 1)
                             pop = population_map.get(tuple(sorted((u, v))), 0)
@@ -284,7 +283,7 @@ def run_simulation_step(t, ped_graph, car_graph, pedestrian_od_pairs, car_od_pai
                             exposure = emis * pop
                             data[f'cost_{w}'] = w * time + (1 - w) * exposure
 
-                        # Get path
+                        # Find the weighted shortest path.
                         try:
                             path = nx.shortest_path(car_graph, origin, destination, weight=f'cost_{w}')
                             time = sum(car_graph[u][v][0].get('driving_time', 1) for u, v in zip(path[:-1], path[1:]))
@@ -298,7 +297,7 @@ def run_simulation_step(t, ped_graph, car_graph, pedestrian_od_pairs, car_od_pai
                     if not path_metrics:
                         continue
 
-                    # Local ideal point
+                    # Local ideal point from the observed range.
                     time_diffs = [m[2] for m in path_metrics]
                     emission_diffs = [m[3] for m in path_metrics]
                     buffer_time = max(time_diffs) - min(time_diffs)
@@ -321,44 +320,15 @@ def run_simulation_step(t, ped_graph, car_graph, pedestrian_od_pairs, car_od_pai
                     continue
 
         total_emission_map = compute_total_emission_map(car_routes, precomputed_emission_map)
-        unique_routes = set(tuple(r[2]) for r in car_routes)
-        print(f"[DEBUG] Step {t} | Unique car routes: {len(unique_routes)} of {len(car_routes)} total")
 
     if t == 0:
         for u, v, key, data in ped_graph.edges(keys=True, data=True):
             data['personal_exposure'] = 0
 
-    # Update pedestrian exposure on undir roads based on dir car roads
-    def make_undirected_emission_map(emission_map):
-        undirected = defaultdict(float)
-        for (u, v), value in emission_map.items():
-            key = tuple(sorted((u, v)))
-            undirected[key] += value
-        return undirected
-
-    undirected_emission_map = make_undirected_emission_map(previous_total_emission_map)
-    update_pedestrian_exposure(ped_graph, undirected_emission_map, neighbor_weights)
-
-    # DEBUG: check exposure distribution
-    exposures = [data['personal_exposure'] for _, _, _, data in ped_graph.edges(keys=True, data=True)]
-    print(f"[DEBUG] Step {t} | Exposure range: min={min(exposures):.6f}, max={max(exposures):.6f}")
-
-    # Normalize walking time and personal exposure again
-    walking_times = [d.get('walking_time', 1) for _, _, _, d in ped_graph.edges(keys=True, data=True)]
-    exposures = [d.get('personal_exposure', 0) for _, _, _, d in ped_graph.edges(keys=True, data=True)]
-
-    norm_time = normalize(walking_times)
-    norm_exposure = normalize(exposures)
-
-    for i, (u, v, key, data) in enumerate(ped_graph.edges(keys=True, data=True)):
-        data['walking_time_norm'] = norm_time[i]
-        data['personal_exposure_norm'] = norm_exposure[i]
 
     return ped_graph, car_graph, pedestrian_routes, car_routes, population_map, total_emission_map
 
 
-
-### --- Full Simulation Loop --- ###
 
 def run_simulation(T, ped_graph, car_graph, pedestrian_od_pairs, car_od_pairs,
                    precomputed_emission_map, weights, mode='local', neighbor_weights=None):
@@ -370,29 +340,25 @@ def run_simulation(T, ped_graph, car_graph, pedestrian_od_pairs, car_od_pairs,
 
     for t in range(T):
         ped_graph, car_graph, pedestrian_routes, car_routes, population_map, total_emission_map = \
-        run_simulation_step(t, ped_graph, car_graph, pedestrian_od_pairs, 
+        run_simulation_step(t, ped_graph, car_graph, pedestrian_od_pairs,
                             car_od_pairs, precomputed_emission_map, weights, mode=mode,
                             previous_total_emission_map=previous_total_emission_map,
                             neighbor_weights=neighbor_weights)
-        
+
         # Save results for this time step
         all_results[t] = {
-        'ped_graph': ped_graph.copy(),  # optionally use deepcopy if needed
-        'car_graph': car_graph.copy(),
-        'pedestrian_routes': pedestrian_routes,
-        'car_routes': car_routes,
-        'population_map': population_map.copy(),
-        'total_emission_map': total_emission_map.copy()}
+            'ped_graph': ped_graph.copy(),
+            'car_graph': car_graph.copy(),
+            'pedestrian_routes': pedestrian_routes,
+            'car_routes': car_routes,
+            'population_map': population_map.copy(),
+            'total_emission_map': total_emission_map.copy(),
+        }
 
         previous_total_emission_map = total_emission_map.copy()
-        
+
         # Precompute and store fastest path metrics for later comparisons
         if t == 0:
-            # Clear personal exposure before computing fastest route exposure
-            # for u, v, key, data in ped_graph.edges(keys=True, data=True):
-            #     data['personal_exposure'] = 0
-
-            # fastest_exposure_per_od = {}
             fastest_walk_time_per_od = {}
 
             for origin, destination, _ in pedestrian_routes:
@@ -400,28 +366,18 @@ def run_simulation(T, ped_graph, car_graph, pedestrian_od_pairs, car_od_pairs,
                     path = get_fastest_path(ped_graph, origin, destination)
                     time, exposure = compute_path_metrics(ped_graph, path)
                     fastest_walk_time_per_od[(origin, destination)] = time
-                    # fastest_exposure_per_od[(origin, destination)] = exposure
                 except:
                     continue
 
             all_results[t]['fastest_walk_time_per_od'] = fastest_walk_time_per_od
-            # all_results[t]['fastest_exposure_per_od'] = fastest_exposure_per_od
 
 
 
         # Summary for this time step
         total_exposure = sum(data.get('personal_exposure', 0) for _, _, _, data in ped_graph.edges(keys=True, data=True))
-        # total_pedestrians = sum(population_map.values())
-        # mean_exposure_per_person = total_exposure / total_pedestrians if total_pedestrians else 0
-
         total_emission = sum(total_emission_map.values())
-        print(f"[DEBUG] Step {t} | Total emissions: {total_emission:.2f}")
 
-        # total_cars = len(car_routes)
-        # mean_emission_per_car = total_emission / total_cars if total_cars else 0
-
-        # Use precomputed fastest path metrics from step 0
-        # fastest_exposure_per_od = all_results[0].get('fastest_exposure_per_od', {})
+        # Use the fastest-path walk times stored at step 0.
         fastest_walk_time_per_od = all_results[0].get('fastest_walk_time_per_od', {})
 
         total_fastest_exposure = 0
@@ -429,7 +385,7 @@ def run_simulation(T, ped_graph, car_graph, pedestrian_od_pairs, car_od_pairs,
 
         for origin, destination, _ in pedestrian_routes:
             try:
-                # Freshly recompute exposure from current conditions
+                # Recompute exposure under current conditions.
                 path_fastest = get_fastest_path(ped_graph, origin, destination)
                 time, exposure = compute_path_metrics(ped_graph, path_fastest)
                 total_fastest_exposure += exposure
@@ -509,7 +465,7 @@ def run_simulation(T, ped_graph, car_graph, pedestrian_od_pairs, car_od_pairs,
 
     return all_results
 
-# ========= PARAMETERS =====================
+# Parameters
 
 # obtain OD nodes
 resident_od_pairs = list(zip(resident_trips['origin_node'], resident_trips['destination_node']))
@@ -517,7 +473,7 @@ worker_od_pairs = list(zip(worker_trips['origin_node'], worker_trips['destinatio
 tourist_od_pairs = list(zip(tourist_trips['origin_node'], tourist_trips['destination_node']))
 car_od_pairs = list(zip(car_trips['origin_node'], car_trips['destination_node']))
 
-# (optional) sample a subset of OD pairs
+# Sample a fixed subset so runs stay comparable.
 def _sample_up_to(pairs, n):
     return random.sample(pairs, min(n, len(pairs)))
 
@@ -537,8 +493,8 @@ for mode, num_steps in modes_steps.items():
     print(f"Running simulation in {mode} mode for {num_steps} steps...")
     print()
     # Run simulation
-    results = run_simulation(num_steps, ped_graph, car_graph, pedestrian_od_pairs, 
-                            car_od_pairs, precomputed_emission_map, weights, 
+    results = run_simulation(num_steps, ped_graph, car_graph, pedestrian_od_pairs,
+                            car_od_pairs, precomputed_emission_map, weights,
                             mode=mode, neighbor_weights=neighbor_weights)
     # Save results
     with open(output_dir + f'{mode}_simulation_results_{num_steps}_steps.pkl', 'wb') as f:
