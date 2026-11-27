@@ -5,11 +5,11 @@ with open('README.md', encoding='utf-8') as f:
 
 setup(
     name='exawaro',
-    version='0.2.1',
+    version='0.2.2',
     description='Exposure-aware routing and behavioural simulation on urban road networks',
     long_description=long_description,
     long_description_content_type='text/markdown',
-    author='Gurban Aliyev',
+    author='Gurban Aliyev, Mirco Nanni',
     url='https://github.com/baygaliyev/exawaro',
     license='MIT',
     packages=find_packages(exclude=['tests', 'tests.*']),

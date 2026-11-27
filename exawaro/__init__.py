@@ -5,7 +5,7 @@ The modules `cars`, `pedestrians` and `utils` are importable helpers.
 scripts; use ``python -m exawaro.<name>`` rather than importing them.
 """
 
-__version__ = "0.2.1"
+__version__ = "0.2.2"
 
 __all__ = [
     "cars",

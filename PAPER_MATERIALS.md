@@ -2,7 +2,7 @@
 
 This file maps the figures and tables used in the MDM 2025 and MONET 2025
 papers to material included here. Notebook cell numbers refer to
-`notebooks/exawaro_pedestrian.ipynb` as released in v0.2.1.
+`notebooks/exawaro_pedestrian.ipynb` as released in v0.2.2.
 
 Status labels:
 
@@ -59,8 +59,9 @@ paper in the MONET caption.
 - The simulation runner writes step-level CSV/PKL outputs, but no stored
   simulation outputs are included here. Restricted trajectory inputs and
   derived OD CSVs cannot be redistributed.
-- The notebooks contain scenario reruns and one interrupted/failed run. These
-  are annotated as exploratory and are not paper figures.
+- The notebooks contain scenario reruns, an interrupted run (cell 54), and a
+  failed projection attempt (cell 154). These are annotated as exploratory and
+  are not paper figures.
 - Some stored MONET figures are labelled `Final Step` while the paper captions
   name the concrete step number. The archived figures are the versions used in
   the thesis; exact paper-pixel identity was not independently proven.
